@@ -1,0 +1,50 @@
+# Doxygen configuration for the HLW8110/HLW8112 driver.
+# Build:  doxygen Doxyfile      ->  docs/doxygen/html/index.html
+PROJECT_NAME           = "HLW8110/HLW8112 Driver"
+PROJECT_NUMBER         = 1.1.0
+PROJECT_BRIEF          = "UART driver for the HLW8110/HLW8112 power-metering IC (STM32 HAL + FreeRTOS)"
+OUTPUT_DIRECTORY       = docs/doxygen
+CREATE_SUBDIRS         = NO
+
+INPUT                  = README.md include src docs examples
+FILE_PATTERNS          = *.h *.c *.md
+RECURSIVE              = YES
+EXCLUDE                = docs/doxygen
+USE_MDFILE_AS_MAINPAGE = README.md
+EXAMPLE_PATH           = examples
+IMAGE_PATH             = docs
+
+OPTIMIZE_OUTPUT_FOR_C  = YES
+EXTRACT_ALL            = NO
+EXTRACT_STATIC         = NO
+MARKDOWN_SUPPORT       = YES
+AUTOLINK_SUPPORT       = YES
+JAVADOC_AUTOBRIEF      = YES
+BUILTIN_STL_SUPPORT    = NO
+
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = NO
+PREDEFINED             = __attribute__(x)= HLW8110_LOG_ENABLE=1
+
+WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_DOC_ERROR      = YES
+WARN_NO_PARAMDOC       = YES
+QUIET                  = YES
+
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = NO
+GENERATE_TREEVIEW      = YES
+SEARCHENGINE           = YES
+
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+GENERATE_LATEX         = NO
+GENERATE_XML           = NO
+
+HAVE_DOT               = YES
+DOT_IMAGE_FORMAT       = svg
+INCLUDE_GRAPH          = YES
+INCLUDED_BY_GRAPH      = YES
+CALL_GRAPH             = NO
+CALLER_GRAPH           = NO
+COLLABORATION_GRAPH    = YES

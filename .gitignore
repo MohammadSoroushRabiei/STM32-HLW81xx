@@ -1,0 +1,12 @@
+# build / docs output
+docs/doxygen/
+tests/test_hlw8110
+*.o
+*.elf
+*.map
+# IDE
+.vscode/
+.idea/
+.settings/
+Debug/
+Release/
