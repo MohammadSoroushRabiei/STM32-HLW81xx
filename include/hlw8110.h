@@ -191,6 +191,7 @@ typedef struct {
  *          HLW8110_Init() because Init uses the zero state to detect double initialisation.
  */
 typedef struct {
+    /** @cond HLW8110_INTERNAL */
     HLW8110_Config_t cfg;
     SemaphoreHandle_t mutex;         /**< UART bus. */
     SemaphoreHandle_t config_mutex;  /**< Configuration transactions. */
@@ -222,6 +223,7 @@ typedef struct {
     volatile bool log_enabled;
     bool log_ref;                    /**< Holds a reference to the shared log mutex. */
     char log_name[8];
+    /** @endcond */
 } HLW8110_Handle_t;
 
 /** @} */ /* hlw8110_types */
@@ -292,7 +294,10 @@ HLW8110_Status_t HLW8110_StartTask(HLW8110_Handle_t *dev, const char *name,
  */
 HLW8110_Status_t HLW8110_StopTask(HLW8110_Handle_t *dev, TickType_t timeout_ticks);
 
-/** @brief Task body. Pass to xTaskCreate() only if you do not use HLW8110_StartTask(). */
+/**
+ * @brief Task body. Pass to xTaskCreate() only if you do not use HLW8110_StartTask().
+ * @param argument Pointer to the initialised ::HLW8110_Handle_t.
+ */
 void HLW8110_Task(void *argument);
 
 /** @} */ /* hlw8110_init */
@@ -324,7 +329,10 @@ HLW8110_Status_t HLW8110_ReadMeasurements(HLW8110_Handle_t *dev, HLW8110_Measure
 
 /**
  * @brief Select the current channel used for apparent power, PF and phase angle (HLW8112).
- * @return ::HLW8110_ERR_UNSUPPORTED when channel B is requested on an HLW8110.
+ * @param[in] dev       Handle.
+ * @param[in] channel_b true = channel B, false = channel A.
+ * @return ::HLW8110_OK, ::HLW8110_ERR_UNSUPPORTED when channel B is requested on an HLW8110,
+ *         or a mutex/UART error code.
  */
 HLW8110_Status_t HLW8110_SelectCurrentChannel(HLW8110_Handle_t *dev, bool channel_b);
 
@@ -333,6 +341,7 @@ HLW8110_Status_t HLW8110_SelectCurrentChannel(HLW8110_Handle_t *dev, bool channe
  * @param[in] dev    Handle.
  * @param[in] dupsel 0=3.4 Hz, 1=6.8 Hz, 2=13.65 Hz, 3=27.3 Hz.
  * @details Keeps `cfg.dupsel` and the checksum baseline in sync so the recovery code does not undo it.
+ * @return ::HLW8110_OK, ::HLW8110_ERR_ARG (dupsel > 3) or a mutex/UART error code.
  */
 HLW8110_Status_t HLW8110_SetUpdateRate(HLW8110_Handle_t *dev, uint8_t dupsel);
 
@@ -362,10 +371,18 @@ float HLW8110_CalcK2(float r_top_ohm, float r_sense_ohm);
  */
 float HLW8110_CorrectK(float k_old, float displayed, float actual);
 
-/** @brief Convert a 24-bit two's complement register value to int32_t. */
+/**
+ * @brief Convert a 24-bit two's complement register value to int32_t.
+ * @param raw Register value (only the lower 24 bits are used).
+ * @return Sign-extended value.
+ */
 int32_t HLW8110_Signed24(uint32_t raw);
 
-/** @brief Convert the raw 24-bit PF register to -1.0 .. 1.0 (0x7FFFFF = 1.0). */
+/**
+ * @brief Convert the raw 24-bit PF register to -1.0 .. 1.0 (0x7FFFFF = 1.0).
+ * @param raw_pf Raw PF register value.
+ * @return Power factor, clamped to -1.0 .. 1.0.
+ */
 float HLW8110_PowerFactorFromRaw(uint32_t raw_pf);
 
 /** @} */ /* hlw8110_helpers */
@@ -382,6 +399,8 @@ float HLW8110_PowerFactorFromRaw(uint32_t raw_pf);
  * @param[in]  reg   Register address (see @ref hlw8110_regs).
  * @param[out] value Receives the value (MSB first assembled).
  * @param[in]  len   Register width in bytes (1..4).
+ * @return ::HLW8110_OK, ::HLW8110_ERR_ARG, ::HLW8110_ERR_TIMEOUT, ::HLW8110_ERR_CHECKSUM,
+ *         ::HLW8110_ERR_HAL or ::HLW8110_ERR_MUTEX.
  */
 HLW8110_Status_t HLW8110_ReadReg(HLW8110_Handle_t *dev, uint8_t reg, uint32_t *value, uint8_t len);
 
@@ -391,19 +410,38 @@ HLW8110_Status_t HLW8110_ReadReg(HLW8110_Handle_t *dev, uint8_t reg, uint32_t *v
  * @param[in] reg   Register address.
  * @param[in] value Value to write.
  * @param[in] len   Register width in bytes (1..4).
+ * @return ::HLW8110_OK, ::HLW8110_ERR_ARG, ::HLW8110_ERR_HAL, ::HLW8110_ERR_TIMEOUT or ::HLW8110_ERR_MUTEX.
  */
 HLW8110_Status_t HLW8110_WriteReg(HLW8110_Handle_t *dev, uint8_t reg, uint32_t value, uint8_t len);
 
-/** @brief Send the reset command and wait 70 ms. */
+/**
+ * @brief Send the reset command and wait 70 ms.
+ * @param[in] dev Handle.
+ * @return ::HLW8110_OK or a mutex/UART error code.
+ */
 HLW8110_Status_t HLW8110_Reset(HLW8110_Handle_t *dev);
 
-/** @brief (Re)write SYSCON and EMUCON2 with read-back verification. */
+/**
+ * @brief (Re)write SYSCON and EMUCON2 with read-back verification.
+ * @param[in] dev Handle.
+ * @return ::HLW8110_OK, ::HLW8110_ERR_HAL (read-back mismatch) or a mutex/UART error code.
+ */
 HLW8110_Status_t HLW8110_Configure(HLW8110_Handle_t *dev);
 
-/** @brief Read the factory coefficient registers (0x6F..0x77). ::HLW8110_ERR_UNCALIBRATED if 0xFFFF. */
+/**
+ * @brief Read the factory coefficient registers (0x6F..0x77).
+ * @param[in,out] dev Handle (the coefficients are stored in it).
+ * @return ::HLW8110_OK, ::HLW8110_ERR_UNCALIBRATED if the coefficients are 0xFFFF,
+ *         or a UART error code.
+ */
 HLW8110_Status_t HLW8110_LoadCoefficients(HLW8110_Handle_t *dev);
 
-/** @brief Compare the EMUStatus checksum with the stored baseline. */
+/**
+ * @brief Compare the EMUStatus checksum with the stored baseline.
+ * @param[in,out] dev Handle.
+ * @return ::HLW8110_OK, ::HLW8110_ERR_CONFIG_MISMATCH (registers changed),
+ *         ::HLW8110_ERR_BUSY (chip still calculating) or a UART error code.
+ */
 HLW8110_Status_t HLW8110_CheckCalibration(HLW8110_Handle_t *dev);
 
 /** @} */ /* hlw8110_regaccess */
@@ -425,23 +463,49 @@ HLW8110_Status_t HLW8110_CheckCalibration(HLW8110_Handle_t *dev);
  * @{
  */
 
-/** @brief printf-style log line with tick timestamp and level tag (no `%f`, see HLW8110_LogMeasurements()). */
+/**
+ * @brief printf-style log line with tick timestamp and level tag.
+ * @param[in] dev   Handle (also selects the log UART, tag and level).
+ * @param[in] level Level of this message.
+ * @param[in] fmt   printf format string (no `%f`; see HLW8110_LogMeasurements()). Lines are cut at 160 characters.
+ * @param[in] ...   Arguments of the format string.
+ */
 void HLW8110_Log(HLW8110_Handle_t *dev, HLW8110_LogLevel_t level, const char *fmt, ...)
     __attribute__((format(printf, 3, 4)));
 
-/** @brief Turn logging on/off at run time. Enabling requires a log UART. */
+/**
+ * @brief Turn logging on/off at run time. Enabling requires a log UART.
+ * @param[in] dev    Handle.
+ * @param[in] enable true = on, false = off.
+ */
 void HLW8110_LogEnable(HLW8110_Handle_t *dev, bool enable);
 
-/** @brief Change the log UART at run time (NULL disables logging). */
+/**
+ * @brief Change the log UART at run time (NULL disables logging).
+ * @param[in] dev   Handle.
+ * @param[in] huart New log UART, or NULL.
+ */
 void HLW8110_LogSetUart(HLW8110_Handle_t *dev, UART_HandleTypeDef *huart);
 
-/** @brief Change the log verbosity at run time. */
+/**
+ * @brief Change the log verbosity at run time.
+ * @param[in] dev   Handle.
+ * @param[in] level New level (::HLW8110_LOG_NONE .. ::HLW8110_LOG_DEBUG).
+ */
 void HLW8110_LogSetLevel(HLW8110_Handle_t *dev, HLW8110_LogLevel_t level);
 
-/** @brief Print one snapshot at INFO level. Floats are printed without `%f` (no `-u _printf_float` needed). */
+/**
+ * @brief Print one snapshot at INFO level. Floats are printed without `%f` (no `-u _printf_float` needed).
+ * @param[in] dev Handle.
+ * @param[in] m   Snapshot to print.
+ */
 void HLW8110_LogMeasurements(HLW8110_Handle_t *dev, const HLW8110_Measurements_t *m);
 
-/** @brief Name of a status code, e.g. "ERR_TIMEOUT". Never NULL. */
+/**
+ * @brief Name of a status code, e.g. "ERR_TIMEOUT".
+ * @param st Status code.
+ * @return Constant string, never NULL ("?" for unknown codes).
+ */
 const char *HLW8110_StatusToString(HLW8110_Status_t st);
 
 /** @} */ /* hlw8110_log */
@@ -455,10 +519,18 @@ const char *HLW8110_StatusToString(HLW8110_Status_t st);
  * @{
  */
 
-/** @brief Call from `HAL_UART_RxCpltCallback()`. */
+/**
+ * @brief Call from `HAL_UART_RxCpltCallback()`.
+ * @param[in] dev   Driver instance (call it once per instance when you have several).
+ * @param[in] huart UART given by the HAL callback; ignored unless it is `cfg.huart` of @p dev.
+ */
 void HLW8110_UART_RxCpltCallback(HLW8110_Handle_t *dev, UART_HandleTypeDef *huart);
 
-/** @brief Call from `HAL_UART_ErrorCallback()`. */
+/**
+ * @brief Call from `HAL_UART_ErrorCallback()`.
+ * @param[in] dev   Driver instance (call it once per instance when you have several).
+ * @param[in] huart UART given by the HAL callback; ignored unless it is `cfg.huart` of @p dev.
+ */
 void HLW8110_UART_ErrorCallback(HLW8110_Handle_t *dev, UART_HandleTypeDef *huart);
 
 /** @} */ /* hlw8110_callbacks */

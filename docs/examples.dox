@@ -1,0 +1,12 @@
+/**
+ * @example nucleo_f767zi/main_example.c
+ * One HLW8110 on USART2 with the log on USART3 (ST-Link virtual COM port) of a NUCLEO-F767ZI.
+ * Shows CubeMX settings, K1/K2 setup, the AppInit retry loop, the HAL callback forwarding
+ * and how a task reads the measurements.
+ */
+
+/**
+ * @example two_chips_one_log/main_two_chips.c
+ * Two HLW8110 chips (one UART each) sharing ONE log UART, with a log tag per chip
+ * (`[1520][I][PDU1] ...`). Shows that the HAL callbacks are forwarded to every instance.
+ */

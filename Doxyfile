@@ -6,12 +6,13 @@ PROJECT_BRIEF          = "UART driver for the HLW8110/HLW8112 power-metering IC 
 OUTPUT_DIRECTORY       = docs/doxygen
 CREATE_SUBDIRS         = NO
 
-INPUT                  = README.md include src docs examples
-FILE_PATTERNS          = *.h *.c *.md
+INPUT                  = README.md CHANGELOG.md include docs
+FILE_PATTERNS          = *.h *.md *.dox
 RECURSIVE              = YES
 EXCLUDE                = docs/doxygen
 USE_MDFILE_AS_MAINPAGE = README.md
 EXAMPLE_PATH           = examples
+EXAMPLE_RECURSIVE      = YES
 IMAGE_PATH             = docs
 
 OPTIMIZE_OUTPUT_FOR_C  = YES

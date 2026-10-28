@@ -14,23 +14,6 @@ on a second UART.
 [1520][I][PDU1] #5  U=229.87V I=0.412A P=94.12W S=94.80VA PF=0.993 f=50.01Hz ang=12.3
 ```
 
-## Contents
-
-1. [Features](#features)
-2. [Status – what is verified](#status--what-is-verified)
-3. [Hardware](#hardware)
-4. [Quick start](#quick-start)
-5. [Configuration reference](#configuration-reference)
-6. [Measurement values](#measurement-values)
-7. [K1 / K2 scale factors](#k1--k2-scale-factors)
-8. [Logging](#logging)
-9. [Multiple chips](#multiple-chips)
-10. [How it works](#how-it-works)
-11. [Error codes](#error-codes)
-12. [Porting to another STM32](#porting-to-another-stm32)
-13. [Tests and documentation](#tests-and-documentation)
-14. [Limitations and roadmap](#limitations-and-roadmap)
-
 More detail: [Hardware and calibration guide](docs/hardware_and_calibration.md) ·
 [Troubleshooting](docs/troubleshooting.md) · [Changelog](CHANGELOG.md)
 
@@ -47,25 +30,25 @@ More detail: [Hardware and calibration guide](docs/hardware_and_calibration.md) 
 
 ## Status – what is verified
 
-| Area                                                                                        | State                                                                                                |
-| ------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| Host tests (simulated chip: protocol, checksum, write protection, conversions, errors, log) | ✅ 70 checks, run in CI                                                                               |
-| Hardware: NUCLEO-F767ZI + HLW8110, init, coefficients, configuration read-back              | ✅                                                                                                    |
-| Hardware: voltage and line frequency compared with a multimeter                             | ✅ within meter accuracy (~±1 %)                                                                      |
-| Hardware: current / power / power factor **under load**                                     | ⚠️ not yet verified – calibrate K1 with a known load (see [guide](docs/hardware_and_calibration.md)) |
-| HLW8112 / channel B code paths                                                              | ⚠️ written from the datasheet, **untested on hardware**                                              |
-| Other STM32 families (F4, H7, L4, G4 …)                                                     | ⚠️ expected to work (see [Porting](#porting-to-another-stm32)), untested                             |
+| Area | State |
+|---|---|
+| Host tests (simulated chip: protocol, checksum, write protection, conversions, errors, log) | ✅ 70 checks, run in CI |
+| Hardware: NUCLEO-F767ZI + HLW8110, init, coefficients, configuration read-back | ✅ |
+| Hardware: voltage and line frequency compared with a multimeter | ✅ within meter accuracy (~±1 %) |
+| Hardware: current / power / power factor **under load** | ⚠️ not yet verified – calibrate K1 with a known load (see [guide](docs/hardware_and_calibration.md)) |
+| HLW8112 / channel B code paths | ⚠️ written from the datasheet, **untested on hardware** |
+| Other STM32 families (F4, H7, L4, G4 …) | ⚠️ expected to work (see "Porting to another STM32" below), untested |
 
 ## Hardware
 
-| Item                                 | Value                                                                                        |
-| ------------------------------------ | -------------------------------------------------------------------------------------------- |
-| MCU TX → chip **RX** (HLW8110 pin 7) | UART                                                                                         |
-| MCU RX ← chip **TX** (HLW8110 pin 6) | UART                                                                                         |
-| Baud                                 | 9600 (fixed on HLW8110)                                                                      |
-| Frame                                | 1 start + 8 data + **even parity** + 1 stop → HAL: `UART_WORDLENGTH_9B` + `UART_PARITY_EVEN` |
-| Supply                               | 3.3 V or 5 V (HLW8110 pin 8), 0.1 µF decoupling                                              |
-| Internal oscillator                  | 3.507 … 3.65 MHz (±2 %)                                                                      |
+| Item | Value |
+|---|---|
+| MCU TX → chip **RX** (HLW8110 pin 7) | UART |
+| MCU RX ← chip **TX** (HLW8110 pin 6) | UART |
+| Baud | 9600 (fixed on HLW8110) |
+| Frame | 1 start + 8 data + **even parity** + 1 stop → HAL: `UART_WORDLENGTH_9B` + `UART_PARITY_EVEN` |
+| Supply | 3.3 V or 5 V (HLW8110 pin 8), 0.1 µF decoupling |
+| Internal oscillator | 3.507 … 3.65 MHz (±2 %) |
 
 HLW8112: set `SPIEN = 0` for UART; `SCLK`/`SCSN` select the baud rate (`SCLK=0,SCSN=1` → 19200, `SCLK=1,SCSN=0` → **9600**, `SCLK=1,SCSN=1` → 38400).
 
@@ -81,10 +64,10 @@ The analog front end follows the datasheet reference circuit (Figure 3): a **shu
 
 **2. CubeMX**
 
-| UART   | Purpose        | Settings                                                                                                                                                 |
-| ------ | -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| USART2 | chip           | 9600, **9-bit word (includes parity)**, **Even**, 1 stop, **global interrupt ON**, NVIC priority number ≥ `configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY` |
-| USART3 | log (optional) | 115200 8N1, no interrupt/DMA (on NUCLEO-144 it is the ST-Link virtual COM port)                                                                          |
+| UART | Purpose | Settings |
+|---|---|---|
+| USART2 | chip | 9600, **9-bit word (includes parity)**, **Even**, 1 stop, **global interrupt ON**, NVIC priority number ≥ `configLIBRARY_MAX_SYSCALL_INTERRUPT_PRIORITY` |
+| USART3 | log (optional) | 115200 8N1, no interrupt/DMA (on NUCLEO-144 it is the ST-Link virtual COM port) |
 
 FreeRTOS: `configUSE_MUTEXES`, `INCLUDE_vTaskDelete`, `INCLUDE_vTaskDelayUntil`, `INCLUDE_xTaskGetSchedulerState`, `INCLUDE_xTaskGetCurrentTaskHandle`.
 
@@ -143,40 +126,40 @@ void HAL_UART_ErrorCallback (UART_HandleTypeDef *h) { HLW8110_UART_ErrorCallback
 
 Start with `HLW8110_ConfigDefault()`; change only what you need.
 
-| Field                                                           | Default               | Meaning                                                                          |
-| --------------------------------------------------------------- | --------------------- | -------------------------------------------------------------------------------- |
-| `huart`                                                         | –                     | UART connected to the chip                                                       |
-| `uart_timeout_ms`                                               | 20                    | Timeout of one TX and of one RX answer                                           |
-| **`k1_current`**                                                | 1.0                   | **Shunt in milliohm** (R001 → 1.0). Must match your board                        |
-| **`k2_voltage`**                                                | 1.0                   | `1000·Rsense/(Rtop+Rsense)`, see `HLW8110_CalcK2()`. Must match your board       |
-| `clki_hz`                                                       | 3579545               | Real oscillator frequency; only changes the frequency reading                    |
-| `variant`                                                       | HLW8110               | `HLW8110_VARIANT_HLW8110` or `HLW8110_VARIANT_HLW8112`                           |
-| `use_rx_it`                                                     | true                  | RX by interrupt (recommended)                                                    |
-| `configure_emucon2`                                             | true                  | Driver writes SYSCON/EMUCON2 (PGA, ADCs, update rate, PF, zero-cross)            |
-| `enable_channel_b`                                              | false                 | HLW8112 only                                                                     |
-| `dupsel`                                                        | 1                     | Chip update rate: 0=3.4, **1=6.8**, 2=13.65, 3=27.3 Hz                           |
-| `measurement_period_ticks`                                      | 150 ms                | Task period (keep ≥ the chip update period)                                      |
-| `max_consecutive_errors`                                        | 5                     | Errors in a row before reset + reconfigure                                       |
-| `config_check_period_ticks`                                     | 5 s                   | RST-flag / checksum health check                                                 |
-| `log_huart` / `log_enabled` / `log_level` / `log_measure_every` | NULL / off / INFO / 0 | See [Logging](#logging)                                                          |
-| `log_name`                                                      | NULL                  | Tag in every log line (max 7 chars), e.g. `"PDU1"`; essential with several chips |
+| Field | Default | Meaning |
+|---|---|---|
+| `huart` | – | UART connected to the chip |
+| `uart_timeout_ms` | 20 | Timeout of one TX and of one RX answer |
+| **`k1_current`** | 1.0 | **Shunt in milliohm** (R001 → 1.0). Must match your board |
+| **`k2_voltage`** | 1.0 | `1000·Rsense/(Rtop+Rsense)`, see `HLW8110_CalcK2()`. Must match your board |
+| `clki_hz` | 3579545 | Real oscillator frequency; only changes the frequency reading |
+| `variant` | HLW8110 | `HLW8110_VARIANT_HLW8110` or `HLW8110_VARIANT_HLW8112` |
+| `use_rx_it` | true | RX by interrupt (recommended) |
+| `configure_emucon2` | true | Driver writes SYSCON/EMUCON2 (PGA, ADCs, update rate, PF, zero-cross) |
+| `enable_channel_b` | false | HLW8112 only |
+| `dupsel` | 1 | Chip update rate: 0=3.4, **1=6.8**, 2=13.65, 3=27.3 Hz |
+| `measurement_period_ticks` | 150 ms | Task period (keep ≥ the chip update period) |
+| `max_consecutive_errors` | 5 | Errors in a row before reset + reconfigure |
+| `config_check_period_ticks` | 5 s | RST-flag / checksum health check |
+| `log_huart` / `log_enabled` / `log_level` / `log_measure_every` | NULL / off / INFO / 0 | See the "Logging" chapter |
+| `log_name` | NULL | Tag in every log line (max 7 chars), e.g. `"PDU1"`; essential with several chips |
 
 ## Measurement values
 
 `HLW8110_Measurements_t`:
 
-| Field                            | Unit   | Notes                                                                                  |
-| -------------------------------- | ------ | -------------------------------------------------------------------------------------- |
-| `voltage_v`                      | V      | RMS                                                                                    |
-| `current_a`                      | A      | RMS, channel A                                                                         |
-| `active_power_w`                 | W      | negative = reverse flow                                                                |
-| `apparent_power_va`              | VA     |                                                                                        |
-| `power_factor`                   | −1 … 1 | **Locked to 1.0 by the chip below its start power** (no load)                          |
-| `frequency_hz`                   | Hz     | Accuracy follows the internal oscillator (±2 %) unless `clki_hz` is corrected          |
-| `phase_deg`                      | °      | Meaningless without load (noise)                                                       |
-| `current_b`, `active_power_b_w`  | A, W   | HLW8112 only (0 on HLW8110)                                                            |
-| `raw_*`                          | –      | Raw register values for debugging                                                      |
-| `sequence`, `timestamp`, `valid` | –      | Counter, `xTaskGetTickCount()` at capture, validity. **Check the age of `timestamp`.** |
+| Field | Unit | Notes |
+|---|---|---|
+| `voltage_v` | V | RMS |
+| `current_a` | A | RMS, channel A |
+| `active_power_w` | W | negative = reverse flow |
+| `apparent_power_va` | VA | |
+| `power_factor` | −1 … 1 | **Locked to 1.0 by the chip below its start power** (no load) |
+| `frequency_hz` | Hz | Accuracy follows the internal oscillator (±2 %) unless `clki_hz` is corrected |
+| `phase_deg` | ° | Meaningless without load (noise) |
+| `current_b`, `active_power_b_w` | A, W | HLW8112 only (0 on HLW8110) |
+| `raw_*` | – | Raw register values for debugging |
+| `sequence`, `timestamp`, `valid` | – | Counter, `xTaskGetTickCount()` at capture, validity. **Check the age of `timestamp`.** |
 
 Very small signals (a few mA, a few tenths of a watt) are dominated by offset/noise of the shunt input. This is a property of the chip; see the [guide](docs/hardware_and_calibration.md) for offset registers.
 
@@ -184,10 +167,10 @@ Very small signals (a few mA, a few tenths of a watt) are dominated by offset/no
 
 The chip returns raw numbers; the driver converts them with the factory coefficients **and two factors describing your board**:
 
-| Factor | Meaning                      | Formula                                                            |
-| ------ | ---------------------------- | ------------------------------------------------------------------ |
-| **K1** | shunt resistance in milliohm | `R001` → `1.0`, `R002` → `2.0`, `0.5 mΩ` → `0.5`                   |
-| **K2** | voltage divider              | `1000 · Rsense / (Rtop + Rsense)` → `HLW8110_CalcK2(rtop, rsense)` |
+| Factor | Meaning | Formula |
+|---|---|---|
+| **K1** | shunt resistance in milliohm | `R001` → `1.0`, `R002` → `2.0`, `0.5 mΩ` → `0.5` |
+| **K2** | voltage divider | `1000 · Rsense / (Rtop + Rsense)` → `HLW8110_CalcK2(rtop, rsense)` |
 
 Readings are **inversely proportional** to K. Correct a factor with a reference instrument:
 
@@ -215,12 +198,12 @@ HLW8110_LogSetUart(&hlw, &huart1);
 /* compile time: -DHLW8110_LOG_ENABLE=0 removes every log call */
 ```
 
-| Level | You see                                                                  |
-| ----- | ------------------------------------------------------------------------ |
+| Level | You see |
+|---|---|
 | ERROR | chip reset/recovery, init failure, read-back mismatch, uncalibrated chip |
-| WARN  | failed reads with the error name, config checksum mismatch, RST flag     |
-| INFO  | start-up steps, coefficients, measurement lines                          |
-| DEBUG | every register read/write: `RD reg=0x26 len=3 val=0x2F0A11`              |
+| WARN | failed reads with the error name, config checksum mismatch, RST flag |
+| INFO | start-up steps, coefficients, measurement lines |
+| DEBUG | every register read/write: `RD reg=0x26 len=3 val=0x2F0A11` |
 
 Log calls of **all** driver instances are serialised by one shared mutex, so several chips may use the same log UART. Log calls block while the UART transmits (≈1 ms per 11 characters at 115200) and must not be used from an interrupt. Use a stack of ≥ 1024 words for the driver task when logging is on.
 
@@ -274,20 +257,20 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef *h)
 
 ## Error codes
 
-| Code                          | Meaning                                   | Typical cause                                  |
-| ----------------------------- | ----------------------------------------- | ---------------------------------------------- |
-| `HLW8110_OK`                  | success                                   |                                                |
-| `HLW8110_ERR_ARG`             | invalid argument / config                 | NULL pointer, `k1/k2 ≤ 0`, bad length          |
-| `HLW8110_ERR_HAL`             | HAL/UART error or read-back mismatch      | framing/parity/overrun error                   |
-| `HLW8110_ERR_TIMEOUT`         | no answer in time                         | wiring, power, baud, chip busy                 |
-| `HLW8110_ERR_CHECKSUM`        | answer frame corrupted                    | wrong parity/word length, noise                |
-| `HLW8110_ERR_MUTEX`           | driver mutex timeout                      | long blocking log / another task holds the bus |
-| `HLW8110_ERR_NOT_READY`       | scheduler not running / no valid snapshot | call `AppInit` after the kernel starts         |
-| `HLW8110_ERR_NOMEM`           | FreeRTOS object/task creation failed      | heap too small                                 |
-| `HLW8110_ERR_UNCALIBRATED`    | chip has no factory coefficients          | permanent; use own calibration                 |
-| `HLW8110_ERR_UNSUPPORTED`     | feature not on this variant               | channel B on HLW8110                           |
-| `HLW8110_ERR_BUSY`            | already initialised / checksum busy       |                                                |
-| `HLW8110_ERR_CONFIG_MISMATCH` | config registers changed                  | chip glitch; driver reconfigures               |
+| Code | Meaning | Typical cause |
+|---|---|---|
+| `HLW8110_OK` | success | |
+| `HLW8110_ERR_ARG` | invalid argument / config | NULL pointer, `k1/k2 ≤ 0`, bad length |
+| `HLW8110_ERR_HAL` | HAL/UART error or read-back mismatch | framing/parity/overrun error |
+| `HLW8110_ERR_TIMEOUT` | no answer in time | wiring, power, baud, chip busy |
+| `HLW8110_ERR_CHECKSUM` | answer frame corrupted | wrong parity/word length, noise |
+| `HLW8110_ERR_MUTEX` | driver mutex timeout | long blocking log / another task holds the bus |
+| `HLW8110_ERR_NOT_READY` | scheduler not running / no valid snapshot | call `AppInit` after the kernel starts |
+| `HLW8110_ERR_NOMEM` | FreeRTOS object/task creation failed | heap too small |
+| `HLW8110_ERR_UNCALIBRATED` | chip has no factory coefficients | permanent; use own calibration |
+| `HLW8110_ERR_UNSUPPORTED` | feature not on this variant | channel B on HLW8110 |
+| `HLW8110_ERR_BUSY` | already initialised / checksum busy | |
+| `HLW8110_ERR_CONFIG_MISMATCH` | config registers changed | chip glitch; driver reconfigures |
 
 Use `HLW8110_StatusToString()` to print them. More: [docs/troubleshooting.md](docs/troubleshooting.md).
 
@@ -320,5 +303,3 @@ The GitHub Actions workflow (`.github/workflows/ci.yml`) runs the tests and publ
 
 - HLW8110/HLW8112 datasheet REV 1.01 (Hiliwi) – obtain it from the manufacturer; it is not redistributed here.
 - License: [MIT](LICENSE).
-
-

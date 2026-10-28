@@ -11,6 +11,9 @@ All notable changes are documented here. The project follows [Semantic Versionin
 - Example `examples/two_chips_one_log` and a "Multiple chips" chapter in the README.
 - Tests: two simulated chips with different K2/registers, shared log, semaphore leak check (70 checks).
 
+### Documentation
+- Warning-free Doxygen build: every public function has `@param`/`@return`, private handle members are hidden, examples are listed on their own page.
+
 ### Changed
 - `HLW8110_Handle_t` no longer contains `log_mutex` (private field; use `log_name`/`log_*` config instead).
 
